@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGP4 Satellite Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h2 class="h5 mb-0">SGP4 Satellite Position Calculator</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="satelliteForm">
+                            <div class="mb-3">
+                                <label for="line1" class="form-label">TLE Line 1</label>
+                                <input type="text" class="form-control" id="line1" required
+                                    value="1 25544U 98067A   24001.28849769  .00018687  00000-0  27518-3 0  9993">
+                            </div>
+                            <div class="mb-3">
+                                <label for="line2" class="form-label">TLE Line 2</label>
+                                <input type="text" class="form-control" id="line2" required
+                                    value="2 25544  51.6405 111.6188 0006072 255.5622 104.4138 15.49890031451356">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Calculate Position</button>
+                        </form>
+                        
+                        <div id="result" class="mt-4 d-none">
+                            <h3 class="h5">Satellite Position</h3>
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h4>Position (km)</h4>
+                                            <p>X: <span id="posX">-</span></p>
+                                            <p>Y: <span id="posY">-</span></p>
+                                            <p>Z: <span id="posZ">-</span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h4>Velocity (km/s)</h4>
+                                            <p>X: <span id="velX">-</span></p>
+                                            <p>Y: <span id="velY">-</span></p>
+                                            <p>Z: <span id="velZ">-</span></p>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted mt-3 mb-0">
+                                        Last updated: <span id="timestamp">-</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="error" class="alert alert-danger mt-3 d-none"></div>
+                    </div>
+                </div>
+
+                <div id="map"></div>
+                
+                <div class="text-center mt-4 text-muted">
+                    <small>
+                        Powered by the SGP4 satellite propagation library<br>
+                        Default TLE shows the International Space Station (ISS)
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 400px; margin-top: 2rem; border-radius: 0.5rem; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
