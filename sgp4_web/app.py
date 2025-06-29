@@ -6,7 +6,7 @@ A web interface for the SGP4 satellite propagation library.
 
 from flask import Flask, render_template, jsonify, request
 from sgp4.api import Satrec, jday
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
 
 app = Flask(__name__)
@@ -80,6 +80,46 @@ def calculate():
 
         lat, lon, alt = eci_to_geodetic(r[0], r[1], r[2], now)
         
+        # Calculate ground track (future path) for the next 45 minutes
+        # with points every 5 minutes
+        path = []
+        for minutes_ahead in range(0, 46, 5):
+            future_time = now + timedelta(minutes=minutes_ahead)
+            future_jd, future_fr = jday(future_time.year, future_time.month, future_time.day,
+                                        future_time.hour, future_time.minute, future_time.second)
+            try:
+                e, r, v = satellite.sgp4(future_jd + future_fr, 0.0)
+                if e == 0:
+                    future_lat, future_lon, future_alt = eci_to_geodetic(r[0], r[1], r[2], future_time)
+                    path.append({
+                        'lat': future_lat,
+                        'lon': future_lon,
+                        'alt': future_alt,
+                        'time': minutes_ahead
+                    })
+            except Exception:
+                pass
+
+        # Calculate ground track (past path) for the previous 45 minutes
+        # with points every 5 minutes
+        past_path = []
+        for minutes_ago in range(45, 0, -5):
+            past_time = now - timedelta(minutes=minutes_ago)
+            past_jd, past_fr = jday(past_time.year, past_time.month, past_time.day,
+                                    past_time.hour, past_time.minute, past_time.second)
+            try:
+                e, r, v = satellite.sgp4(past_jd + past_fr, 0.0)
+                if e == 0:
+                    past_lat, past_lon, past_alt = eci_to_geodetic(r[0], r[1], r[2], past_time)
+                    past_path.append({
+                        'lat': past_lat,
+                        'lon': past_lon,
+                        'alt': past_alt,
+                        'time': -minutes_ago
+                    })
+            except Exception:
+                pass
+        
         return jsonify({
             'position': {
                 'x': r[0],
@@ -94,6 +134,8 @@ def calculate():
                 'y': v[1],
                 'z': v[2]
             },
+            'path': path,
+            'past_path': past_path,
             'timestamp': now.isoformat()
         })
     except Exception as e:

@@ -2,6 +2,25 @@ body {
     background-color: #f8f9fa;
 }
 
+.leaflet-popup-content-wrapper {
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    min-width: 80px;
+    max-width: 120px;
+}
+
+.leaflet-popup-content {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.leaflet-popup-tip {
+    width: 12px;
+    height: 6px;
+}
+
 .card {
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
     border: none;

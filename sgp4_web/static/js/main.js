@@ -8,7 +8,40 @@ document.addEventListener('DOMContentLoaded', function() {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
-    let marker = L.marker([0, 0]).addTo(map);
+    let marker = L.circleMarker([0, 0], {
+        radius: 5,
+        color: '#FF4500',
+        fillColor: '#FF4500',
+        fillOpacity: 1,
+        weight: 1
+    }).addTo(map);
+    
+    // Helper function to split path at dateline
+    function splitPathAtDateline(points) {
+        if (points.length < 2) return [points];
+        const segments = [];
+        let current = [points[0]];
+        for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1];
+            const curr = points[i];
+            if (Math.abs(curr[1] - prev[1]) > 180) {
+                segments.push(current);
+                current = [curr];
+            } else {
+                current.push(curr);
+            }
+        }
+        if (current.length > 0) segments.push(current);
+        return segments;
+    }
+
+    // Create arrays to hold segment polylines
+    let pastLines = [];
+    let futureLines = [];
+    function removeLines(lines) {
+        lines.forEach(line => map.removeLayer(line));
+        lines.length = 0;
+    }
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -51,11 +84,48 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Plot on map
             if (typeof data.position.lat === 'number' && typeof data.position.lon === 'number') {
+                // Set current position marker
                 marker.setLatLng([data.position.lat, data.position.lon]);
                 map.setView([data.position.lat, data.position.lon], 3, { animate: true });
                 marker.bindPopup(
-                    `<b>Satellite Position</b><br>Lat: ${data.position.lat.toFixed(4)}<br>Lon: ${data.position.lon.toFixed(4)}<br>Alt: ${data.position.alt.toFixed(2)} km`
+                    `<div style="font-size: 0.9em;"><b>Satellite</b><br>Lat: ${data.position.lat.toFixed(4)}<br>Lon: ${data.position.lon.toFixed(4)}<br>Alt: ${data.position.alt.toFixed(1)} km</div>`,
+                    { maxWidth: 120 }
                 ).openPopup();
+                
+                // Remove old lines
+                removeLines(pastLines);
+                removeLines(futureLines);
+                // Draw segmented lines for past and future, split at dateline
+                if (data.past_path && data.past_path.length > 0 && data.path && data.path.length > 0) {
+                    const pastPathPoints = data.past_path.map(point => [point.lat, point.lon]);
+                    const currentPoint = [data.position.lat, data.position.lon];
+                    const futurePathPoints = data.path.map(point => [point.lat, point.lon]);
+                    // Past: up to and including current
+                    const pastSegments = splitPathAtDateline(pastPathPoints.concat([currentPoint]));
+                    pastSegments.forEach(seg => {
+                        const l = L.polyline(seg, {
+                            color: 'blue',
+                            weight: 2,
+                            opacity: 0.6,
+                            dashArray: '3, 3',
+                            smoothFactor: 1
+                        }).addTo(map);
+                        pastLines.push(l);
+                    });
+                    // Future: from current to future
+                    const futureSegments = splitPathAtDateline([currentPoint].concat(futurePathPoints));
+                    futureSegments.forEach(seg => {
+                        const l = L.polyline(seg, {
+                            color: 'red',
+                            weight: 2,
+                            opacity: 0.6,
+                            dashArray: '3, 3',
+                            smoothFactor: 1
+                        }).addTo(map);
+                        futureLines.push(l);
+                    });
+                }
+
             }
             
             // Show results
