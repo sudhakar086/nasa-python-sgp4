@@ -80,7 +80,18 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('velZ').textContent = data.velocity.z.toFixed(6);
             
             const date = new Date(data.timestamp);
-            document.getElementById('timestamp').textContent = date.toLocaleString();
+            const options = {
+                timeZone: 'Asia/Kolkata',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            const istString = date.toLocaleString('en-IN', options).replace(',', '');
+            document.getElementById('timestamp').textContent = istString + ' IST';
             
             // Plot on map
             if (typeof data.position.lat === 'number' && typeof data.position.lon === 'number') {

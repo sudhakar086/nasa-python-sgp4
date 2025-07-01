@@ -136,7 +136,7 @@ def calculate():
             },
             'path': path,
             'past_path': past_path,
-            'timestamp': now.isoformat()
+            'timestamp': (now + timedelta(hours=5, minutes=30)).isoformat()
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
