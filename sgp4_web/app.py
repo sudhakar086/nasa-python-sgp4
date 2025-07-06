@@ -142,5 +142,6 @@ def calculate():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    # Run with: python sgp4_web/app.py
     app.run(debug=True)
 
