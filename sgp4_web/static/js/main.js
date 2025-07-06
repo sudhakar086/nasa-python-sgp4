@@ -2,6 +2,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('satelliteForm');
     const resultDiv = document.getElementById('result');
     const errorDiv = document.getElementById('error');
+    const line1Input = document.getElementById('line1');
+    const line2Input = document.getElementById('line2');
+    const saveTleButton = document.getElementById('saveTleButton');
+    const manageTlesButton = document.getElementById('manageTlesButton');
+    const tleListUl = document.getElementById('tleList');
+    const noTlesMessage = document.getElementById('noTlesMessage');
+    const manageTlesModal = new bootstrap.Modal(document.getElementById('manageTlesModal'));
+    let currentLoadedTleId = null; // To keep track of TLE loaded from DB for potential update
 
     // Initialize Leaflet map
     let map = L.map('map').setView([0, 0], 2);
@@ -152,4 +160,113 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Trigger form submission on page load with default values
     form.dispatchEvent(new Event('submit'));
+
+    // --- TLE Management Functions ---
+
+    async function fetchAndDisplayTles() {
+        try {
+            const response = await fetch('/api/tles');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const tles = await response.json();
+
+            tleListUl.innerHTML = ''; // Clear existing list
+            if (tles.length === 0) {
+                noTlesMessage.classList.remove('d-none');
+            } else {
+                noTlesMessage.classList.add('d-none');
+                tles.forEach(tle => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between align-items-center tle-item';
+                    li.innerHTML = `
+                        <div>
+                            <h6 class="my-0">${tle.name}</h6>
+                            <small class="text-muted">${tle.line1.substring(0,20)}...</small>
+                        </div>
+                        <button class="btn btn-sm btn-danger delete-tle-btn" data-id="${tle.id}">Delete</button>
+                    `;
+                    li.addEventListener('click', (e) => {
+                        if (e.target.classList.contains('delete-tle-btn')) return; // Don't load if delete was clicked
+                        line1Input.value = tle.line1;
+                        line2Input.value = tle.line2;
+                        currentLoadedTleId = tle.id; // Keep track of loaded TLE
+                        form.dispatchEvent(new Event('submit')); // Recalculate
+                        manageTlesModal.hide();
+                        // Consider changing "Save TLE" to "Update TLE" here if desired
+                    });
+                    tleListUl.appendChild(li);
+                });
+
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.delete-tle-btn').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        e.stopPropagation(); // Prevent li click event
+                        const tleId = e.target.dataset.id;
+                        if (confirm('Are you sure you want to delete this TLE?')) {
+                            await deleteTle(tleId);
+                        }
+                    });
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching TLEs:', error);
+            tleListUl.innerHTML = '<li class="list-group-item text-danger">Error loading TLEs.</li>';
+            noTlesMessage.classList.add('d-none');
+        }
+    }
+
+    async function saveTle() {
+        const name = prompt("Enter a name for this TLE:", "My Satellite");
+        if (!name) return; // User cancelled or entered nothing
+
+        const line1 = line1Input.value;
+        const line2 = line2Input.value;
+
+        try {
+            const response = await fetch('/api/tles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, line1, line2 })
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+            const newTle = await response.json();
+            alert(`TLE "${newTle.name}" saved successfully!`);
+            currentLoadedTleId = newTle.id; // Mark this as the current TLE
+            // Optionally, refresh TLE list if modal is open or next time it's opened
+        } catch (error) {
+            console.error('Error saving TLE:', error);
+            alert(`Error saving TLE: ${error.message}`);
+        }
+    }
+
+    async function deleteTle(tleId) {
+        try {
+            const response = await fetch(`/api/tles/${tleId}`, { method: 'DELETE' });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+            alert('TLE deleted successfully.');
+            if (currentLoadedTleId === parseInt(tleId)) {
+                currentLoadedTleId = null; // Clear if the deleted TLE was the one loaded
+            }
+            fetchAndDisplayTles(); // Refresh list in modal
+        } catch (error) {
+            console.error('Error deleting TLE:', error);
+            alert(`Error deleting TLE: ${error.message}`);
+        }
+    }
+
+    // Event Listeners for TLE Management
+    saveTleButton.addEventListener('click', saveTle);
+    manageTlesButton.addEventListener('click', fetchAndDisplayTles); // Load TLEs when modal is about to be shown
+
+    // Clear currentLoadedTleId if user manually changes TLE lines
+    line1Input.addEventListener('input', () => currentLoadedTleId = null);
+    line2Input.addEventListener('input', () => currentLoadedTleId = null);
+
 });

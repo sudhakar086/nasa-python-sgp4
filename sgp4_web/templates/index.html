@@ -27,9 +27,17 @@
                                 <input type="text" class="form-control" id="line2" required
                                     value="2 25544  51.6405 111.6188 0006072 255.5622 104.4138 15.49890031451356">
                             </div>
-                            <button type="submit" class="btn btn-primary">Calculate Position</button>
+                            <div class="row">
+                                <div class="col">
+                                    <button type="submit" class="btn btn-primary">Calculate Position</button>
+                                </div>
+                                <div class="col text-end">
+                                    <button type="button" class="btn btn-success" id="saveTleButton">Save TLE</button>
+                                    <button type="button" class="btn btn-info" id="manageTlesButton" data-bs-toggle="modal" data-bs-target="#manageTlesModal">Manage TLEs</button>
+                                </div>
+                            </div>
                         </form>
-                        
+
                         <div id="result" class="mt-4 d-none">
                             <h3 class="h5">Satellite Position</h3>
                             <div class="card">
@@ -74,9 +82,34 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         #map { height: 400px; margin-top: 2rem; border-radius: 0.5rem; }
+        .tle-item:hover { background-color: #f8f9fa; cursor: pointer; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    <!-- Manage TLEs Modal -->
+    <div class="modal fade" id="manageTlesModal" tabindex="-1" aria-labelledby="manageTlesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manageTlesModalLabel">Manage Saved TLEs</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Click on a TLE to load it into the main form. Click the delete button to remove it.</p>
+                    <ul class="list-group" id="tleList">
+                        <!-- TLEs will be loaded here by JavaScript -->
+                    </ul>
+                    <div id="noTlesMessage" class="text-center text-muted mt-3 d-none">
+                        No TLEs saved yet.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
