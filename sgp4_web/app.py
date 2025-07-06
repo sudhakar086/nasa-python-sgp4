@@ -4,12 +4,120 @@ SGP4 Satellite Propagation Web Interface
 A web interface for the SGP4 satellite propagation library.
 """
 
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, g
 from sgp4.api import Satrec, jday
 from datetime import datetime, timedelta
 import math
+import sqlite3
 
 app = Flask(__name__)
+
+DATABASE = 'sgp4_tles.db'
+
+def get_db():
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect(DATABASE)
+        db.row_factory = sqlite3.Row # Access columns by name
+    return db
+
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
+
+def init_db():
+    with app.app_context():
+        db = get_db()
+        with app.open_resource('schema.sql', mode='r') as f:
+            db.cursor().executescript(f.read())
+        db.commit()
+
+# Command to initialize DB: flask init-db
+@app.cli.command('init-db')
+def init_db_command():
+    """Clear existing data and create new tables."""
+    init_db()
+    print('Initialized the database.')
+
+# API Endpoints for TLE Management
+@app.route('/api/tles', methods=['POST'])
+def add_tle():
+    data = request.get_json()
+    name = data.get('name')
+    line1 = data.get('line1')
+    line2 = data.get('line2')
+
+    if not name or not line1 or not line2:
+        return jsonify({'error': 'Missing data for TLE (name, line1, line2 required)'}), 400
+
+    try:
+        db = get_db()
+        cursor = db.execute('INSERT INTO tles (name, line1, line2) VALUES (?, ?, ?)',
+                            [name, line1, line2])
+        db.commit()
+        return jsonify({'id': cursor.lastrowid, 'name': name, 'line1': line1, 'line2': line2}), 201
+    except sqlite3.IntegrityError: # Should not happen with current schema unless we add unique constraints
+        return jsonify({'error': 'TLE already exists or data invalid'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/tles', methods=['GET'])
+def get_tles():
+    try:
+        db = get_db()
+        cursor = db.execute('SELECT id, name, line1, line2, created_at FROM tles ORDER BY created_at DESC')
+        tles = [dict(row) for row in cursor.fetchall()]
+        return jsonify(tles)
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/tles/<int:tle_id>', methods=['GET'])
+def get_tle(tle_id):
+    try:
+        db = get_db()
+        cursor = db.execute('SELECT id, name, line1, line2, created_at FROM tles WHERE id = ?', [tle_id])
+        tle = dict(cursor.fetchone())
+        if tle:
+            return jsonify(tle)
+        else:
+            return jsonify({'error': 'TLE not found'}), 404
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/tles/<int:tle_id>', methods=['PUT'])
+def update_tle(tle_id):
+    data = request.get_json()
+    name = data.get('name')
+    line1 = data.get('line1')
+    line2 = data.get('line2')
+
+    if not name or not line1 or not line2:
+        return jsonify({'error': 'Missing data for TLE (name, line1, line2 required)'}), 400
+
+    try:
+        db = get_db()
+        cursor = db.execute('UPDATE tles SET name = ?, line1 = ?, line2 = ? WHERE id = ?',
+                            [name, line1, line2, tle_id])
+        db.commit()
+        if cursor.rowcount == 0:
+            return jsonify({'error': 'TLE not found or no change made'}), 404
+        return jsonify({'id': tle_id, 'name': name, 'line1': line1, 'line2': line2})
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/tles/<int:tle_id>', methods=['DELETE'])
+def delete_tle(tle_id):
+    try:
+        db = get_db()
+        cursor = db.execute('DELETE FROM tles WHERE id = ?', [tle_id])
+        db.commit()
+        if cursor.rowcount == 0:
+            return jsonify({'error': 'TLE not found'}), 404
+        return jsonify({'message': 'TLE deleted successfully'})
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 def eci_to_geodetic(x, y, z, dt):
     # WGS84 constants
