@@ -83,9 +83,13 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('posY').textContent = data.position.y.toFixed(2);
             document.getElementById('posZ').textContent = data.position.z.toFixed(2);
             
-            document.getElementById('velX').textContent = data.velocity.x.toFixed(6);
-            document.getElementById('velY').textContent = data.velocity.y.toFixed(6);
-            document.getElementById('velZ').textContent = data.velocity.z.toFixed(6);
+            // Show only total velocity in km/s
+            const speedKmps = Math.sqrt(
+                Math.pow(data.velocity.x, 2) +
+                Math.pow(data.velocity.y, 2) +
+                Math.pow(data.velocity.z, 2)
+            );
+            document.getElementById('velocity').textContent = speedKmps.toFixed(6);
             
             const date = new Date(data.timestamp);
             const options = {
@@ -96,9 +100,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
-                hour12: false
+                hour12: true
             };
-            const istString = date.toLocaleString('en-IN', options).replace(',', '');
+            let istString = date.toLocaleString('en-IN', options).replace(',', '');
+            istString = istString.replace(/(\d{2})\/(\d{2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2}) (AM|PM)/, function(match, d, m, y, h, min, s, ap) {
+                return `${d}/${m}/${y} ${parseInt(h)}:${min}:${s}`;
+            });
             document.getElementById('timestamp').textContent = istString + ' IST';
             
             // Plot on map
