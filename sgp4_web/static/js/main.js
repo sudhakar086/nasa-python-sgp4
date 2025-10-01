@@ -103,9 +103,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 hour12: true
             };
             let istString = date.toLocaleString('en-IN', options).replace(',', '');
-            istString = istString.replace(/(\d{2})\/(\d{2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2}) (AM|PM)/, function(match, d, m, y, h, min, s, ap) {
-                return `${d}/${m}/${y} ${parseInt(h)}:${min}:${s}`;
-            });
+            // Capitalize am/pm to AM/PM if present
+            istString = istString.replace(/(am|pm)/, function(m) { return m.toUpperCase(); });
             document.getElementById('timestamp').textContent = istString + ' IST';
             
             // Plot on map

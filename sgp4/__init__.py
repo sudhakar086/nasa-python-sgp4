@@ -55,7 +55,7 @@ International Space Station at 12:50:19 on 29 June 2000:
 >>> e, r, v = satellite.sgp4(jd, fr)
 >>> e
 0
->>> print(r)  # True Equator Mean Equinox position (km)
+>>> print(r)  # True Equator Mean Equinox position
 (-6102.44..., -986.33..., -2820.31...)
 >>> print(v)  # True Equator Mean Equinox velocity (km/s)
 (-1.45..., -5.52..., 5.10...)
