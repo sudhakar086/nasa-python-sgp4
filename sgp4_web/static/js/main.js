@@ -1,102 +1,102 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('satelliteForm');
-    const resultDiv = document.getElementById('result');
-    const errorDiv = document.getElementById('error');
-    const line1Input = document.getElementById('line1');
-    const line2Input = document.getElementById('line2');
-    const saveTleButton = document.getElementById('saveTleButton');
-    const manageTlesButton = document.getElementById('manageTlesButton');
-    const tleListUl = document.getElementById('tleList');
-    const noTlesMessage = document.getElementById('noTlesMessage');
-    const manageTlesModal = new bootstrap.Modal(document.getElementById('manageTlesModal'));
-    let currentLoadedTleId = null; // To keep track of TLE loaded from DB for potential update
-
-    // Initialize Leaflet map
-    let map = L.map('map').setView([0, 0], 2);
+    // Initialize map
+    const map = L.map('map').setView([0, 0], 2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
-    let marker = L.circleMarker([0, 0], {
-        radius: 5,
-        color: '#FF4500',
-        fillColor: '#FF4500',
-        fillOpacity: 1,
-        weight: 1
-    }).addTo(map);
-    
-    // Helper function to split path at dateline
-    function splitPathAtDateline(points) {
-        if (points.length < 2) return [points];
-        const segments = [];
-        let current = [points[0]];
-        for (let i = 1; i < points.length; i++) {
-            const prev = points[i - 1];
-            const curr = points[i];
-            if (Math.abs(curr[1] - prev[1]) > 180) {
-                segments.push(current);
-                current = [curr];
-            } else {
-                current.push(curr);
-            }
-        }
-        if (current.length > 0) segments.push(current);
-        return segments;
-    }
 
-    // Create arrays to hold segment polylines
-    let pastLines = [];
-    let futureLines = [];
-    function removeLines(lines) {
-        lines.forEach(line => map.removeLayer(line));
-        lines.length = 0;
-    }
+    let satelliteMarker = null;
+    let pathLine = null;
 
-    form.addEventListener('submit', function(e) {
+    // Form submission
+    document.getElementById('satelliteForm').addEventListener('submit', async function(e) {
         e.preventDefault();
-        
-        // Hide any previous errors
-        errorDiv.classList.add('d-none');
-        
-        // Get form data
-        const line1 = document.getElementById('line1').value.trim();
-        const line2 = document.getElementById('line2').value.trim();
-        
-        // Make API request
-        fetch('/calculate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                line1: line1,
-                line2: line2
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
+        const result = document.getElementById('result');
+        const error = document.getElementById('error');
+
+        try {
+            const response = await fetch('/calculate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    line1: document.getElementById('line1').value,
+                    line2: document.getElementById('line2').value
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Calculation failed');
+
+            // Update position display
+            result.classList.remove('d-none');
+            error.classList.add('d-none');
             
-            // Update UI with results
             document.getElementById('posX').textContent = data.position.x.toFixed(2);
             document.getElementById('posY').textContent = data.position.y.toFixed(2);
             document.getElementById('posZ').textContent = data.position.z.toFixed(2);
+            document.getElementById('velocity').textContent = Math.sqrt(
+                data.velocity.x**2 + data.velocity.y**2 + data.velocity.z**2
+            ).toFixed(2);
+            document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleString();
+
+            // Update map
+            if (satelliteMarker) map.removeLayer(satelliteMarker);
+            if (pathLine) map.removeLayer(pathLine);
+
+            satelliteMarker = L.marker([data.position.lat, data.position.lon])
+                .bindPopup(`Altitude: ${data.position.alt.toFixed(2)} km`)
+                .addTo(map);
+
+            const pathCoords = [
+                ...data.past_path.map(p => [p.lat, p.lon]),
+                [data.position.lat, data.position.lon],
+                ...data.path.map(p => [p.lat, p.lon])
+            ];
             
-            // Show only total velocity in km/s
-            const speedKmps = Math.sqrt(
-                Math.pow(data.velocity.x, 2) +
-                Math.pow(data.velocity.y, 2) +
-                Math.pow(data.velocity.z, 2)
-            );
-            document.getElementById('velocity').textContent = speedKmps.toFixed(6);
-            
-            const date = new Date(data.timestamp);
-            const options = {
-                timeZone: 'Asia/Kolkata',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
+            pathLine = L.polyline(pathCoords, {
+                color: 'red',
+                weight: 2,
+                opacity: 0.8
+            }).addTo(map);
+
+            map.setView([data.position.lat, data.position.lon]);
+        } catch (err) {
+            result.classList.add('d-none');
+            error.classList.remove('d-none');
+            error.textContent = err.message;
+        }
+    });
+
+    // TLE Management
+    document.getElementById('saveTleButton').addEventListener('click', async function() {
+        const name = prompt('Enter a name for this TLE:');
+        if (!name) return;
+
+        try {
+            const response = await fetch('/api/tles', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    line1: document.getElementById('line1').value,
+                    line2: document.getElementById('line2').value
+                })
+            });
+
+            if (!response.ok) throw new Error('Failed to save TLE');
+            alert('TLE saved successfully');
+        } catch (err) {
+            alert('Error saving TLE: ' + err.message);
+        }
+    });
+
+    // Trigger initial calculation
+    document.getElementById('satelliteForm').dispatchEvent(new Event('submit'));
+});
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',

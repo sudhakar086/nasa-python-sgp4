@@ -22,7 +22,7 @@ body {
 }
 
 .card {
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border: none;
     border-radius: 0.5rem;
 }
@@ -33,6 +33,11 @@ body {
 
 .form-control {
     font-family: monospace;
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
 }
 
 #result {
@@ -47,4 +52,16 @@ body {
 
 .alert {
     border-radius: 0.5rem;
+}
+
+#map {
+    height: 400px;
+    width: 100%;
+    border-radius: 4px;
+    margin: 0;
+    padding: 0;
+}
+
+.leaflet-container {
+    background: #f8f9fa;
 }

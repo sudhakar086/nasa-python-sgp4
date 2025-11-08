@@ -4,14 +4,28 @@ SGP4 Satellite Propagation Web Interface
 A web interface for the SGP4 satellite propagation library.
 """
 
-from flask import Flask, render_template, jsonify, request, g
+from flask import Flask, render_template, request, jsonify, g
+from flask_cors import CORS
 from sgp4.api import Satrec, jday
 from datetime import datetime, timedelta
 import math
 import sqlite3
+import json
+import os
 
-app = Flask(__name__)
+app = Flask(__name__, 
+    static_folder='static',
+    static_url_path='/static')
+CORS(app)
 
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+    return response
+
+# Database configuration
 DATABASE = 'sgp4_tles.db'
 
 def get_db():
@@ -40,6 +54,21 @@ def init_db_command():
     """Clear existing data and create new tables."""
     init_db()
     print('Initialized the database.')
+
+# File to store TLE data
+TLE_FILE = 'saved_tles.json'
+
+def load_saved_tles():
+    if os.path.exists(TLE_FILE):
+        with open(TLE_FILE, 'r') as f:
+            return json.load(f)
+    return []
+
+def save_tle(tle_data):
+    tles = load_saved_tles()
+    tles.append(tle_data)
+    with open(TLE_FILE, 'w') as f:
+        json.dump(tles, f)
 
 # API Endpoints for TLE Management
 @app.route('/api/tles', methods=['POST'])
@@ -248,6 +277,24 @@ def calculate():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/tle', methods=['GET', 'POST', 'DELETE'])
+def manage_tle():
+    if request.method == 'GET':
+        return jsonify(load_saved_tles())
+    
+    elif request.method == 'POST':
+        tle_data = request.json
+        save_tle(tle_data)
+        return jsonify({'message': 'TLE saved successfully'})
+    
+    elif request.method == 'DELETE':
+        tle_id = request.args.get('id')
+        tles = load_saved_tles()
+        tles = [tle for tle in tles if tle['id'] != tle_id]
+        with open(TLE_FILE, 'w') as f:
+            json.dump(tles, f)
+        return jsonify({'message': 'TLE deleted successfully'})
 
 if __name__ == '__main__':
     # Run with: ./.venv/bin/python sgp4_web/app.py
